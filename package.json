@@ -1,0 +1,32 @@
+{
+  "name": "file-converter",
+  "version": "1.0.0",
+  "description": "A File converter that converts files types.",
+  "main": "index.js",
+  "scripts": {
+    "server": "node server.js",
+    "client": "npm run dev --prefix client",
+    "dev": "concurrently -k -n \"backend,frontend\" -c \"magenta,cyan\" \"npm run server\" \"npm run client\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PrathamR015/file-converter.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/PrathamR015/file-converter/issues"
+  },
+  "homepage": "https://github.com/PrathamR015/file-converter#readme",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "multer": "^2.1.1",
+    "pdfkit": "^0.18.0",
+    "sharp": "^0.34.5"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.1"
+  }
+}
