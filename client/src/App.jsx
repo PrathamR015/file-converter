@@ -238,11 +238,9 @@ export default function App() {
         {/* Simplified Header inside the Card */}
         <div className="card-header">
           <div className="brand">
-            <Zap size={18} className="brand-icon" />
             <h2>File Converter</h2>
           </div>
           <div className="limit-badge">
-            <ShieldAlert size={12} />
             <span>Max 5MB</span>
           </div>
         </div>
@@ -338,7 +336,6 @@ export default function App() {
                   </>
                 ) : (
                   <>
-                    <Zap size={16} fill="white" />
                     <span>Convert Now</span>
                   </>
                 )}
