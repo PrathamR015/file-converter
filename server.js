@@ -148,6 +148,34 @@ const convertImageToPdf = (imageBuffer) => {
   });
 };
 
+const convertImagesToPdf = (imageBuffers) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ autoFirstPage: false });
+      const chunks = [];
+      doc.on('data', chunk => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', err => reject(err));
+
+      for (const imgBuf of imageBuffers) {
+        // transcode to PNG first using Sharp for perfect PDFKit compatibility
+        const pngBuffer = await sharp(imgBuf).png().toBuffer();
+        const metadata = await sharp(pngBuffer).metadata();
+        
+        // Points scale: convert image pixels (e.g. 96dpi) to points (72dpi)
+        const width = metadata.width * 72 / 96;
+        const height = metadata.height * 72 / 96;
+        
+        doc.addPage({ size: [width, height] });
+        doc.image(pngBuffer, 0, 0, { width, height });
+      }
+      doc.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
+
 const convertTextToPdf = (textBuffer, filename) => {
   return new Promise((resolve, reject) => {
     try {
@@ -306,6 +334,57 @@ app.post('/api/convert', (req, res) => {
     } catch (conversionError) {
       console.error('Conversion Error:', conversionError);
       return res.status(500).json({ success: false, error: `Failed to convert file: ${conversionError.message}` });
+    }
+  });
+});
+
+// Multi-file upload setup
+const uploadMultiple = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10 MB limit
+  }
+}).array('files', 30); // Support up to 30 files
+
+app.post('/api/convert-multiple', (req, res) => {
+  uploadMultiple(req, res, async (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ success: false, error: 'One or more files exceed the size limit.' });
+      }
+      return res.status(400).json({ success: false, error: `Upload error: ${err.message}` });
+    } else if (err) {
+      return res.status(500).json({ success: false, error: `Internal server upload error: ${err.message}` });
+    }
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ success: false, error: 'No files uploaded.' });
+    }
+
+    const { targetFormat } = req.body;
+    if (!targetFormat || targetFormat.toLowerCase() !== 'pdf') {
+      return res.status(400).json({ success: false, error: 'Multi-file conversion is only supported for PDF output.' });
+    }
+
+    try {
+      const imageBuffers = req.files.map(f => f.buffer);
+      const convertedBuffer = await convertImagesToPdf(imageBuffers);
+      
+      const outputFilename = `merged_images.pdf`;
+      const contentType = 'application/pdf';
+      const base64Data = convertedBuffer.toString('base64');
+
+      return res.status(200).json({
+        success: true,
+        filename: outputFilename,
+        contentType: contentType,
+        originalSize: req.files.reduce((acc, f) => acc + f.size, 0),
+        convertedSize: convertedBuffer.length,
+        fileData: `data:${contentType};base64,${base64Data}`
+      });
+    } catch (error) {
+      console.error('Multi-conversion Error:', error);
+      return res.status(500).json({ success: false, error: `Failed to merge images into PDF: ${error.message}` });
     }
   });
 });
